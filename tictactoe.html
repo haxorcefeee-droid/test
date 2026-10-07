@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tic Tac Toe</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #1e293b;
+    --panel-2: #273449;
+    --accent: #38bdf8;
+    --x-color: #38bdf8;
+    --o-color: #f472b6;
+    --win: #4ade80;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: radial-gradient(circle at top, #1e293b, var(--bg));
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+  .app { width: 100%; max-width: 900px; }
+  h1 {
+    text-align: center;
+    font-size: 2rem;
+    letter-spacing: 4px;
+    margin-bottom: 4px;
+    text-transform: uppercase;
+  }
+  .subtitle { text-align: center; color: var(--muted); margin-bottom: 20px; font-size: .9rem; }
+  .layout {
+    display: grid;
+    grid-template-columns: minmax(280px, 360px) 1fr;
+    gap: 20px;
+    align-items: start;
+  }
+  @media (max-width: 720px) { .layout { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid #334155;
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.35);
+  }
+
+  /* Status */
+  #status {
+    text-align: center;
+    font-size: 1.05rem;
+    font-weight: 600;
+    min-height: 28px;
+    margin-bottom: 12px;
+  }
+  #status.thinking { color: var(--muted); font-style: italic; }
+
+  /* Board */
+  .board {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    aspect-ratio: 1 / 1;
+    width: 100%;
+  }
+  .cell {
+    background: var(--panel-2);
+    border: 1px solid #3b4b63;
+    border-radius: 10px;
+    font-size: clamp(2.2rem, 9vw, 3.4rem);
+    font-weight: 700;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, transform .1s;
+    color: var(--text);
+    user-select: none;
+  }
+  .cell:hover:not(:disabled) { background: #31415c; transform: scale(1.03); }
+  .cell:disabled { cursor: default; }
+  .cell.x { color: var(--x-color); }
+  .cell.o { color: var(--o-color); }
+  .cell.win {
+    background: rgba(74, 222, 128, .18);
+    border-color: var(--win);
+    animation: pulse .6s ease-in-out infinite alternate;
+  }
+  @keyframes pulse { from { box-shadow: 0 0 0 rgba(74,222,128,0); } to { box-shadow: 0 0 14px rgba(74,222,128,.5); } }
+
+  /* Controls */
+  .controls { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  button {
+    font: inherit;
+    font-size: .9rem;
+    font-weight: 600;
+    padding: 9px 16px;
+    border-radius: 8px;
+    border: 1px solid #475569;
+    background: var(--panel-2);
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s, border-color .15s;
+  }
+  button:hover { background: #31415c; border-color: var(--accent); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #082f49; }
+  button.primary:hover { background: #7dd3fc; }
+  button.danger { border-color: #7f1d1d; color: #fca5a5; }
+  button.danger:hover { background: #7f1d1d33; border-color: #ef4444; }
+
+  .difficulty { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+  .difficulty button.active { background: var(--accent); color: #082f49; border-color: var(--accent); }
+
+  /* Scoreboard */
+  .scores {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    text-align: center;
+    margin-bottom: 16px;
+  }
+  .score-box { background: var(--panel-2); border-radius: 10px; padding: 10px 6px; }
+  .score-box .label { font-size: .75rem; text-transform: uppercase; letter-spacing: 1px; color: var(--muted); }
+  .score-box .value { font-size: 1.6rem; font-weight: 700; margin-top: 2px; }
+  .score-box.x .value { color: var(--x-color); }
+  .score-box.o .value { color: var(--o-color); }
+  .score-box.d .value { color: var(--win); }
+
+  .history-title {
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #history {
+    list-style: none;
+    max-height: 320px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  #history li {
+    background: var(--panel-2);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font-size: .85rem;
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    align-items: center;
+  }
+  #history li .who { font-weight: 700; }
+  #history li .who.x { color: var(--x-color); }
+  #history li .who.o { color: var(--o-color); }
+  #history li .who.d { color: var(--win); }
+  #history li .meta { color: var(--muted); font-size: .78rem; text-align: right; }
+  #history .empty { justify-content: center; color: var(--muted); background: transparent; }
+
+  .db-badge {
+    text-align: center;
+    font-size: .72rem;
+    color: var(--muted);
+    margin-top: 14px;
+  }
+  .db-badge span { color: var(--win); }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Tic Tac Toe</h1>
+  <p class="subtitle">You are X · Computer is O · Scores saved in your browser's local database</p>
+
+  <div class="layout">
+    <!-- Game -->
+    <div class="card">
+      <div id="status">Your turn — click a square</div>
+      <div class="board" id="board"></div>
+      <div class="controls">
+        <button class="primary" id="newRound">New Round</button>
+      </div>
+      <div class="difficulty">
+        <button id="diffEasy">Easy (random)</button>
+        <button id="diffHard" class="active">Hard (unbeatable)</button>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="card">
+      <div class="scores">
+        <div class="score-box x"><div class="label">You (X)</div><div class="value" id="scoreX">0</div></div>
+        <div class="score-box d"><div class="label">Draws</div><div class="value" id="scoreD">0</div></div>
+        <div class="score-box o"><div class="label">CPU (O)</div><div class="value" id="scoreO">0</div></div>
+      </div>
+
+      <div class="history-title">
+        <span>Game History</span>
+        <button class="danger" id="clearBtn" style="padding:4px 10px;font-size:.75rem;">Clear History</button>
+      </div>
+      <ul id="history"><li class="empty">No games yet</li></ul>
+
+      <div class="db-badge" id="dbBadge">Database: <span>connecting…</span></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ---------------------------------------------------------------
+  // Storage layer: IndexedDB with localStorage fallback
+  // ---------------------------------------------------------------
+  const DB_NAME = "tictactoe-db";
+  const DB_VERSION = 1;
+  const STORE_GAMES = "games";
+  const STORE_SCORES = "scores";
+  const SCORE_KEY = "totals";
+
+  const Storage = (function () {
+    let db = null;
+    let mode = "idb"; // "idb" | "ls"
+
+    function openIDB() {
+      return new Promise((resolve) => {
+        if (!("indexedDB" in window)) return resolve(null);
+        let req;
+        try { req = indexedDB.open(DB_NAME, DB_VERSION); }
+        catch (e) { return resolve(null); }
+        req.onupgradeneeded = (e) => {
+          const d = e.target.result;
+          if (!d.objectStoreNames.contains(STORE_GAMES)) {
+            d.createObjectStore(STORE_GAMES, { keyPath: "id", autoIncrement: true });
+          }
+          if (!d.objectStoreNames.contains(STORE_SCORES)) {
+            d.createObjectStore(STORE_SCORES);
+          }
+        };
+        req.onsuccess = (e) => {
+          const d = e.target.result;
+          d.onversionchange = () => d.close();
+          resolve(d);
+        };
+        req.onerror = () => resolve(null);
+        req.onblocked = () => resolve(null);
+      });
+    }
+
+    function lsGet(store, key, fallback) {
+      try {
+        const raw = localStorage.getItem("ttt:" + store + ":" + key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (e) { return fallback; }
+    }
+    function lsSet(store, key, value) {
+      try { localStorage.setItem("ttt:" + store + ":" + key, JSON.stringify(value)); } catch (e) {}
+    }
+
+    function idbTx(stores, fn) {
+      return new Promise((resolve, reject) => {
+        const tx = db.transaction(stores, "readwrite");
+        let result;
+        try { result = fn(stores.map((s) => tx.objectStore(s))); }
+        catch (e) { reject(e); return; }
+        tx.oncomplete = () => resolve(result);
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error("aborted"));
+      });
+    }
+
+    return {
+      get mode() { return mode; },
+
+      async init() {
+        db = await openIDB();
+        if (!db) mode = "ls";
+        return mode;
+      },
+
+      async getScores() {
+        if (mode === "idb") {
+          return new Promise((resolve) => {
+            try {
+              const tx = db.transaction(STORE_SCORES, "readonly");
+              const req = tx.objectStore(STORE_SCORES).get(SCORE_KEY);
+              req.onsuccess = () => resolve(req.result || { x: 0, o: 0, d: 0 });
+              req.onerror = () => resolve({ x: 0, o: 0, d: 0 });
+            } catch (e) { resolve({ x: 0, o: 0, d: 0 }); }
+          });
+        }
+        return lsGet(STORE_SCORES, SCORE_KEY, { x: 0, o: 0, d: 0 });
+      },
+
+      async addGame(game) {
+        if (mode === "idb") {
+          await idbTx([STORE_GAMES, STORE_SCORES], ([games, scores]) => {
+            games.add(game);
+            const req = scores.get(SCORE_KEY);
+            req.onsuccess = () => {
+              const t = req.result || { x: 0, o: 0, d: 0 };
+              if (game.winner === "X") t.x++;
+              else if (game.winner === "O") t.o++;
+              else t.d++;
+              t.updated = Date.now();
+              scores.put(t, SCORE_KEY);
+            };
+          });
+          return;
+        }
+        // localStorage fallback
+        const all = lsGet(STORE_GAMES, "all", []);
+        game.id = all.length ? all[all.length - 1].id + 1 : 1;
+        all.push(game);
+        lsSet(STORE_GAMES, "all", all);
+        const t = lsGet(STORE_SCORES, SCORE_KEY, { x: 0, o: 0, d: 0 });
+        if (game.winner === "X") t.x++;
+        else if (game.winner === "O") t.o++;
+        else t.d++;
+        t.updated = Date.now();
+        lsSet(STORE_SCORES, SCORE_KEY, t);
+      },
+
+      async getGames(limit) {
+        if (mode === "idb") {
+          return new Promise((resolve) => {
+            try {
+              const tx = db.transaction(STORE_GAMES, "readonly");
+              const store = tx.objectStore(STORE_GAMES);
+              const out = [];
+              const req = store.openCursor(null, "prev");
+              req.onsuccess = (e) => {
+                const cur = e.target.result;
+                if (cur && out.length < limit) {
+                  out.push(cur.value);
+                  cur.continue();
+                } else {
+                  resolve(out);
+                }
+              };
+              req.onerror = () => resolve(out);
+            } catch (e) { resolve([]); }
+          });
+        }
+        const all = lsGet(STORE_GAMES, "all", []);
+        return all.slice(-limit).reverse();
+      },
+
+      async clearAll() {
+        if (mode === "idb") {
+          await idbTx([STORE_GAMES, STORE_SCORES], ([games, scores]) => {
+            games.clear();
+            scores.clear();
+          });
+          return;
+        }
+        try {
+          localStorage.removeItem("ttt:" + STORE_GAMES + ":all");
+          localStorage.removeItem("ttt:" + STORE_SCORES + ":" + SCORE_KEY);
+        } catch (e) {}
+      },
+    };
+  })();
+
+  // ---------------------------------------------------------------
+  // Game logic
+  // ---------------------------------------------------------------
+  const LINES = [
+    [0, 1, 2], [3, 4, 5], [6, 7, 8],
+    [0, 3, 6], [1, 4, 7], [2, 5, 8],
+    [0, 4, 8], [2, 4, 6],
+  ];
+  const EMPTY = " ";
+  let board = Array(9).fill(EMPTY);
+  let current = "X";          // X = human, O = computer
+  let gameOver = false;
+  let difficulty = "hard";    // "easy" | "hard"
+  const moves = [];           // record of moves for history
+  let startedAt = Date.now();
+
+  const boardEl = document.getElementById("board");
+  const statusEl = document.getElementById("status");
+  const scoreXEl = document.getElementById("scoreX");
+  const scoreOEl = document.getElementById("scoreO");
+  const scoreDEl = document.getElementById("scoreD");
+  const historyEl = document.getElementById("history");
+  const dbBadgeEl = document.getElementById("dbBadge");
+
+  const WIN_LINES = (() => {
+    const winnerOf = (b) => {
+      for (const l of LINES) {
+        const [a, c, d] = l;
+        if (b[a] !== EMPTY && b[a] === b[c] && b[a] === b[d]) return { player: b[a], line: l };
+      }
+      if (b.every((v) => v !== EMPTY)) return { player: "draw", line: null };
+      return null;
+    };
+    return winnerOf;
+  })();
+
+  function setStatus(text, thinking) {
+    statusEl.textContent = text;
+    statusEl.classList.toggle("thinking", !!thinking);
+  }
+
+  function render() {
+    boardEl.innerHTML = "";
+    board.forEach((v, i) => {
+      const cell = document.createElement("button");
+      cell.className = "cell" + (v === "X" ? " x" : v === "O" ? " o" : "");
+      cell.textContent = v === EMPTY ? "" : v;
+      cell.disabled = v !== EMPTY || gameOver || current !== "X";
+      cell.addEventListener("click", () => humanMove(i));
+      boardEl.appendChild(cell);
+    });
+  }
+
+  function highlightWin(line) {
+    if (!line) return;
+    const cells = boardEl.children;
+    line.forEach((i) => cells[i].classList.add("win"));
+  }
+
+  function checkResult() {
+    const r = WIN_LINES(board);
+    if (!r) return null;
+    gameOver = true;
+    if (r.player === "draw") {
+      setStatus("It's a draw!", false);
+    } else {
+      setStatus(r.player === "X" ? "You win! 🎉" : "Computer wins!", false);
+    }
+    highlightWin(r.line);
+    render();
+    saveGame(r.player === "draw" ? "draw" : r.player);
+    return r;
+  }
+
+  async function saveGame(winner) {
+    const game = {
+      moves: moves.slice(),
+      winner: winner,
+      startedAt: startedAt,
+      endedAt: Date.now(),
+      duration: Date.now() - startedAt,
+      difficulty: difficulty,
+    };
+    try {
+      await Storage.addGame(game);
+      await refreshStats();
+    } catch (e) {
+      /* keep game playable even if storage fails */
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // AI
+  // ---------------------------------------------------------------
+  function emptyCells(b) {
+    const out = [];
+    for (let i = 0; i < 9; i++) if (b[i] === EMPTY) out.push(i);
+    return out;
+  }
+
+  function randomMove(b) {
+    const cells = emptyCells(b);
+    return cells[Math.floor(Math.random() * cells.length)];
+  }
+
+  // Minimax (best play for O)
+  function minimax(b, player, depth) {
+    const r = WIN_LINES(b);
+    if (r) {
+      if (r.player === "O") return { score: 10 - depth };
+      if (r.player === "X") return { score: depth - 10 };
+      return { score: 0 };
+    }
+    let best = null;
+    for (const i of emptyCells(b)) {
+      b[i] = player;
+      const res = minimax(b, player === "O" ? "X" : "O", depth + 1);
+      b[i] = EMPTY;
+      if (player === "O") {
+        if (!best || res.score > best.score) best = { score: res.score, move: i };
+      } else {
+        if (!best || res.score < best.score) best = { score: res.score, move: i };
+      }
+    }
+    return best;
+  }
+
+  function computerMove() {
+    if (gameOver) return;
+    setStatus("Computer is thinking…", true);
+    setTimeout(() => {
+      if (gameOver) return;
+      let idx;
+      if (difficulty === "easy") {
+        idx = randomMove(board);
+      } else {
+        const best = minimax(board.slice(), "O", 0);
+        idx = best ? best.move : randomMove(board);
+      }
+      if (idx === undefined || idx === null) idx = randomMove(board);
+      applyMove(idx, "O");
+      if (!checkResult()) {
+        current = "X";
+        setStatus("Your turn — click a square", false);
+        render();
+      }
+    }, 350);
+  }
+
+  function applyMove(i, player) {
+    board[i] = player;
+    moves.push({ p: player, i: i });
+  }
+
+  function humanMove(i) {
+    if (gameOver || current !== "X" || board[i] !== EMPTY) return;
+    applyMove(i, "X");
+    if (checkResult()) return;
+    current = "O";
+    render();
+    computerMove();
+  }
+
+  function newRound() {
+    board = Array(9).fill(EMPTY);
+    moves.length = 0;
+    current = "X";
+    gameOver = false;
+    startedAt = Date.now();
+    setStatus("Your turn — click a square", false);
+    render();
+  }
+
+  // ---------------------------------------------------------------
+  // Stats / history UI
+  // ---------------------------------------------------------------
+  function fmtDate(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) +
+      " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  }
+
+  async function refreshStats() {
+    const t = await Storage.getScores();
+    scoreXEl.textContent = t.x || 0;
+    scoreOEl.textContent = t.o || 0;
+    scoreDEl.textContent = t.d || 0;
+
+    const games = await Storage.getGames(25);
+    if (!games.length) {
+      historyEl.innerHTML = '<li class="empty">No games yet</li>';
+      return;
+    }
+    historyEl.innerHTML = "";
+    for (const g of games) {
+      const li = document.createElement("li");
+      const who = document.createElement("span");
+      const isDraw = g.winner === "draw";
+      who.className = "who " + (isDraw ? "d" : g.winner.toLowerCase());
+      who.textContent = isDraw ? "Draw" : (g.winner === "X" ? "You won" : "CPU won");
+      const meta = document.createElement("span");
+      meta.className = "meta";
+      const movesN = Array.isArray(g.moves) ? g.moves.length : "?";
+      meta.textContent = movesN + " moves · " + (g.difficulty || "hard") + " · " + fmtDate(g.endedAt || g.startedAt || Date.now());
+      li.appendChild(who);
+      li.appendChild(meta);
+      historyEl.appendChild(li);
+    }
+  }
+
+  // ---------------------------------------------------------------
+  // Controls
+  // ---------------------------------------------------------------
+  document.getElementById("newRound").addEventListener("click", newRound);
+
+  document.getElementById("clearBtn").addEventListener("click", async () => {
+    if (!confirm("Clear all scores and game history from the local database?")) return;
+    try {
+      await Storage.clearAll();
+      await refreshStats();
+    } catch (e) {}
+  });
+
+  const diffEasyBtn = document.getElementById("diffEasy");
+  const diffHardBtn = document.getElementById("diffHard");
+  function setDifficulty(d) {
+    difficulty = d;
+    diffEasyBtn.classList.toggle("active", d === "easy");
+    diffHardBtn.classList.toggle("active", d === "hard");
+    newRound();
+  }
+  diffEasyBtn.addEventListener("click", () => setDifficulty("easy"));
+  diffHardBtn.addEventListener("click", () => setDifficulty("hard"));
+
+  // ---------------------------------------------------------------
+  // Boot
+  // ---------------------------------------------------------------
+  (async function boot() {
+    const mode = await Storage.init();
+    dbBadgeEl.innerHTML = mode === "idb"
+      ? 'Database: <span>IndexedDB (tictactoe-db)</span>'
+      : 'Database: <span>localStorage fallback</span>';
+    await refreshStats();
+    newRound();
+  })();
+})();
+</script>
+</body>
+</html>
